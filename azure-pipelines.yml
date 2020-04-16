@@ -22,5 +22,5 @@ steps:
 - script: ./MonteCarlo
   displayName: 'Running binary...'
 
-- publish: $(System.DefaultWorkingDirectory)/records.csv
-  artifact: records.csv
+# - publish: $(System.DefaultWorkingDirectory)/records.csv
+#   artifact: records.csv
