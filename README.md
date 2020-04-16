@@ -12,5 +12,5 @@
 
 # To Run
 
-- `./MonteCarlo <num threads> <num trials> [-s | gather speedup/parallel fraction and save to 'records.csv']
+- `./MonteCarlo <num threads> <num trials> [-s | gather speedup/parallel fraction and save to 'records.csv']`
 
