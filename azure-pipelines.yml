@@ -10,16 +10,14 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-
 - script: |
     cmake CMakeLists.txt
     cmake --build .
   displayName: 'Building...'
 
-- script: lscpu
-  displayName: 'CPU Info...'
-  
-- script: ./MonteCarlo
+- script: |
+    lscpu
+    ./MonteCarlo
   displayName: 'Running binary...'
 
 # - publish: $(System.DefaultWorkingDirectory)/records.csv
