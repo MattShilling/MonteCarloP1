@@ -10,7 +10,7 @@ OBJS=$(subst .cc,.o,$(SRCS))
 all: main
 
 main: $(OBJS)
-	$(CXX) $(LDFLAGS) -o main $(OBJS) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -o main_bin $(OBJS) $(LDLIBS)
 
 depend: .depend
 
