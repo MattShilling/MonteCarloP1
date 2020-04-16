@@ -36,10 +36,11 @@ const float RMAX = 2.0;
 
 const float k_tn = tan((M_PI / 180.) * 30.);
 
+// Test memory.
 struct test_mem {
-  float *xcs;//[NUMTRIALS];
-  float *ycs;//[NUMTRIALS];
-  float *rs;//[NUMTRIALS];
+  float *xcs;
+  float *ycs;
+  float *rs;
   int trials;
   bool initialized;
   float prob;
@@ -113,17 +114,16 @@ void mc_run(std::shared_ptr<void> mem) {
     }
   }
   // std::cout << numHits << std::endl;
-  data->prob = (float)hits / (float)NUMTRIALS;
+  data->prob = (float)hits / (float)data->trials;
 }
 
 void mc_init(std::shared_ptr<void> mem) {
   test_mem *data = static_cast<test_mem *>(mem.get());
 
-  if(data->initialized == false) {
+  if(!data->initialized) {
     data->xcs = new float[data->trials];
     data->ycs = new float[data->trials];
     data->rs = new float[data->trials];
-
     data->initialized = true;
   }
 
@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
   std::shared_ptr<test_mem> mc_mem = std::make_shared<test_mem>();
   TestRig monte_carlo(mc_mem, mc_run, mc_init);
 
+  // Taking in some command line arguments to control the program.
   float threads = NUMT;
   int trials = NUMTRIALS;
 
@@ -165,20 +166,24 @@ int main(int argc, char *argv[]) {
     trials = std::stoi(std::string(argv[2]));
   }
 
+  // Some initialization of variables. 
   mc_mem->trials = trials;
   mc_mem->initialized = false;
+  double megatrials_one, megatrials_two;
   
   // Setting the precision for output.
   std::cout << std::fixed;
-  std::cout << std::setprecision(3);
+  std::cout << std::setprecision(6);
 
-  // Test with one thread.
-  monte_carlo.Init(1);
-  for (int t = 0; t < NUMTRIES; t++) {
-    monte_carlo.Run(static_cast<double>(trials));
+  if (argc >= 4 && std::string(argv[3]) == "-s") {
+    // Test with one thread.
+    monte_carlo.Init(1);
+    for (int t = 0; t < NUMTRIES; t++) {
+      monte_carlo.Run(static_cast<double>(trials));
+    }
+
+    megatrials_one = monte_carlo.MaxMegaMults();
   }
-
-  double megatrials_one = monte_carlo.MaxMegaMults();
 
   // Test with one thread.
   monte_carlo.Init(threads);
@@ -186,26 +191,35 @@ int main(int argc, char *argv[]) {
     monte_carlo.Run(static_cast<double>(trials));
   }
 
-  double megatrials_two = monte_carlo.MaxMegaMults();
+  std::cout << "Freeing memory..." << std::endl;
+  delete [] mc_mem->xcs;
+  delete [] mc_mem->ycs;
+  delete [] mc_mem->rs;
 
-  double speedup = CalcSpeedup(megatrials_two, megatrials_one);
+  megatrials_two = monte_carlo.MaxMegaMults();
 
   std::cout << threads << '\t' << trials << '\t' << mc_mem->prob << '\t'
             << monte_carlo.MaxMegaMults() << std::endl;
 
-  float fp = CalcFp(speedup, threads);
-  std::cout << "Parallel fraction = " << fp << std::endl;
+  if (argc >= 4 && std::string(argv[3]) == "-s") {
+    double speedup = CalcSpeedup(megatrials_two, megatrials_one);
+    float fp = CalcFp(speedup, threads);
 
-  std::cout << "Writing to records.csv..." << std::endl;
+    std::cout << "Speedup = " << speedup << std::endl;
+    std::cout << "Parallel fraction = " << fp << std::endl;
 
-  std::ofstream outfile;
-  outfile.open("records.csv", std::ios_base::app);
+    std::cout << "Writing to records.csv..." << std::endl;
 
-  // Setting the precision for output.
-  outfile << std::fixed;
-  outfile << std::setprecision(3);
-  outfile << threads << '\t' << trials << '\t' << mc_mem->prob << '\t'
-            << monte_carlo.MaxMegaMults() << '\t' << fp << std::endl;
+    std::ofstream outfile;
+    outfile.open("records.csv", std::ios_base::app);
+
+    // Setting the precision for output.
+    outfile << std::fixed;
+    outfile << std::setprecision(3);
+    outfile << threads << '\t' << trials << '\t' << mc_mem->prob << '\t'
+              << monte_carlo.MaxMegaMults() << '\t' << fp << std::endl;
+    outfile.close();
+  }
 
   return 0;
 }
