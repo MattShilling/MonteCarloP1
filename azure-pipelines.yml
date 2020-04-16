@@ -15,7 +15,11 @@ steps:
     cmake --build .
   displayName: 'Building...'
 
-- script: |
-    lscpu
+- script: lscpu
+  displayName: 'Running binary...'
+  
+-script: |
     ./MonteCarlo
   displayName: 'Running binary...'
+- publish: $(System.DefaultWorkingDirectory)/records.csv
+  artifact: records.csv
