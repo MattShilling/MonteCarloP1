@@ -10,10 +10,12 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-- script: make
+- script: |
+    cmake CMakeLists.txt
+    cmake --build .
   displayName: 'Building...'
 
 - script: |
     lscpu
-    ./main_bin
+    ./MonteCarlo
   displayName: 'Running binary...'
