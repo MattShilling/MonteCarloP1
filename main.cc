@@ -5,60 +5,62 @@
 #include <ctime>
 #include <random>
 #include <iostream>
-
+#include <fstream>
+#include <iomanip>
 #include <omp.h>
 
 #include "test_rig.h"
 
-// setting the number of threads:
+// Setting the number of threads.
 #ifndef NUMT
-#define NUMT		8
+#define NUMT 8
 #endif
 
-// setting the number of trials in the monte carlo simulation:
+// Setting the number of trials in the monte carlo simulation.
 #ifndef NUMTRIALS
-#define NUMTRIALS	1000000
+#define NUMTRIALS 1000000
 #endif
 
-// how many tries to discover the maximum performance:
+// How many tries to discover the maximum performance.
 #ifndef NUMTRIES
-#define NUMTRIES	10
+#define NUMTRIES 10
 #endif
 
 // ranges for the random numbers:
-const float XCMIN =	-1.0;
-const float XCMAX =	 1.0;
-const float YCMIN =	 0.0;
-const float YCMAX =	 2.0;
-const float RMIN  =	 0.5;
-const float RMAX  =	 2.0;
+const float XCMIN = -1.0;
+const float XCMAX = 1.0;
+const float YCMIN = 0.0;
+const float YCMAX = 2.0;
+const float RMIN = 0.5;
+const float RMAX = 2.0;
 
-const float k_tn = tan( (M_PI/180.)*30. );
+const float k_tn = tan((M_PI / 180.) * 30.);
 
 struct test_mem {
-  // No need for dynamic memory since array size is known at compile-time.
-	float xcs[NUMTRIALS];
-	float ycs[NUMTRIALS];
-	float rs[NUMTRIALS];
-  float prob; 
+  float *xcs;//[NUMTRIALS];
+  float *ycs;//[NUMTRIALS];
+  float *rs;//[NUMTRIALS];
+  int trials;
+  bool initialized;
+  float prob;
 };
 
 void mc_run(std::shared_ptr<void> mem) {
+  // Get our test memory.
   test_mem *data = static_cast<test_mem *>(mem.get());
   int hits = 0;
-#pragma omp parallel for default(none) shared(data) reduction(+:hits)
-  for(int n = 0; n < NUMTRIALS; n++)
-  {
+#pragma omp parallel for default(none) shared(data) reduction(+ : hits)
+  for (int n = 0; n < data->trials; n++) {
     // randomize the location and radius of the circle:
     float xc = data->xcs[n];
     float yc = data->ycs[n];
-    float  r = data->rs[n];
+    float r = data->rs[n];
 
     // solve for the intersection using the quadratic formula:
-    float a = 1. + k_tn*k_tn;
-    float b = -2.*( xc + yc*k_tn );
-    float c = xc*xc + yc*yc - r*r;
-    float d = b*b - 4.*a*c;
+    float a = 1. + k_tn * k_tn;
+    float b = -2. * (xc + yc * k_tn);
+    float c = xc * xc + yc * yc - r * r;
+    float d = b * b - 4. * a * c;
 
     // We missed the circle.
     if (d < 0.0) {
@@ -67,10 +69,10 @@ void mc_run(std::shared_ptr<void> mem) {
 
     // hits the circle:
     // get the first intersection:
-    d = sqrt( d );
-    float t1 = (-b + d ) / ( 2.*a );	// time to intersect the circle
-    float t2 = (-b - d ) / ( 2.*a );	// time to intersect the circle
-    float tmin = t1 < t2 ? t1 : t2;		// only care about the first intersection
+    d = sqrt(d);
+    float t1 = (-b + d) / (2. * a); // time to intersect the circle
+    float t2 = (-b - d) / (2. * a); // time to intersect the circle
+    float tmin = t1 < t2 ? t1 : t2; // only care about the first intersection
 
     // Laser pointer is inside circle.
     if (tmin < 0.0) {
@@ -79,78 +81,131 @@ void mc_run(std::shared_ptr<void> mem) {
 
     // where does it intersect the circle?
     float xcir = tmin;
-    float ycir = tmin*k_tn;
+    float ycir = tmin * k_tn;
 
     // get the unitized normal vector at the point of intersection:
     float nx = xcir - xc;
     float ny = ycir - yc;
-    float nxy = sqrt( nx*nx + ny*ny );
-    nx /= nxy;	// unit vector
-    ny /= nxy;	// unit vector
+    float nxy = sqrt(nx * nx + ny * ny);
+    nx /= nxy; // unit vector
+    ny /= nxy; // unit vector
 
     // get the unitized incoming vector:
     float inx = xcir - 0.;
     float iny = ycir - 0.;
-    float in = sqrt( inx*inx + iny*iny );
-    inx /= in;	// unit vector
-    iny /= in;	// unit vector
+    float in = sqrt(inx * inx + iny * iny);
+    inx /= in; // unit vector
+    iny /= in; // unit vector
 
     // get the outgoing (bounced) vector:
-    float dot = inx*nx + iny*ny;
-    float outx = inx - 2.*nx*dot;	// angle of reflection = angle of incidence`
-    float outy = iny - 2.*ny*dot;	// angle of reflection = angle of incidence`
+    float dot = inx * nx + iny * ny;
+    float outx =
+        inx - 2. * nx * dot; // angle of reflection = angle of incidence`
+    float outy =
+        iny - 2. * ny * dot; // angle of reflection = angle of incidence`
 
     // find out if it hits the infinite plate:
-    float tt = ( 0. - ycir ) / outy;
+    float tt = (0. - ycir) / outy;
 
     // The beam hits the infinite plate.
     if (tt >= 0.0) {
       hits++;
     }
-
-	}
-  //std::cout << numHits << std::endl;
-	data->prob = (float)hits/(float)NUMTRIALS;
+  }
+  // std::cout << numHits << std::endl;
+  data->prob = (float)hits / (float)NUMTRIALS;
 }
 
 void mc_init(std::shared_ptr<void> mem) {
   test_mem *data = static_cast<test_mem *>(mem.get());
+
+  if(data->initialized == false) {
+    data->xcs = new float[data->trials];
+    data->ycs = new float[data->trials];
+    data->rs = new float[data->trials];
+
+    data->initialized = true;
+  }
+
   std::default_random_engine generator;
   // Most Monte Carlo sampling or integration techniques assume a “random number
-  // generator,” which generates uniform statistically independent values 
+  // generator,” which generates uniform statistically independent values
   // - MONTE CARLO TECHNIQUES, 2009 by G. Cowan
-  std::uniform_real_distribution<float> xcs_dist(XCMIN,XCMAX);
-  std::uniform_real_distribution<float> ycs_dist(YCMIN,YCMAX);
-  std::uniform_real_distribution<float> rs_dist(RMIN,RMAX);
+  std::uniform_real_distribution<float> xcs_dist(XCMIN, XCMAX);
+  std::uniform_real_distribution<float> ycs_dist(YCMIN, YCMAX);
+  std::uniform_real_distribution<float> rs_dist(RMIN, RMAX);
 
-  for( int n = 0; n < NUMTRIALS; n++ )
-  {       
-    data->xcs[n]  = xcs_dist(generator);
-    data->ycs[n]  = ycs_dist(generator);
-    data->rs[n]   = rs_dist(generator); 
-  }       
+  for (int n = 0; n < data->trials; n++) {
+    data->xcs[n] = xcs_dist(generator);
+    data->ycs[n] = ycs_dist(generator);
+    data->rs[n] = rs_dist(generator);
+  }
 }
 
 double CalcSpeedup(double test_two, double test_one) {
-  return test_two/test_one;
+  return test_two / test_one;
 }
 
-float CalcFP(double speedup) {
-  return (4./3.) * (1. - (1./speedup));
+float CalcFp(double speedup, double threads) {
+  return (threads / (threads - 1.0)) * (1. - (1. / speedup));
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   std::shared_ptr<test_mem> mc_mem = std::make_shared<test_mem>();
-  TestRig proj(mc_mem, mc_run, mc_init);
+  TestRig monte_carlo(mc_mem, mc_run, mc_init);
 
-  std::cout << std::fixed; std::cout.precision(3);
+  float threads = NUMT;
+  int trials = NUMTRIALS;
+
+  if(argc >= 2) {
+    threads = std::stof(std::string(argv[1]));
+  }
+
+  if(argc >= 3) {
+    trials = std::stoi(std::string(argv[2]));
+  }
+
+  mc_mem->trials = trials;
+  mc_mem->initialized = false;
+  
+  // Setting the precision for output.
+  std::cout << std::fixed;
+  std::cout << std::setprecision(3);
 
   // Test with one thread.
-  proj.Init(NUMT);
+  monte_carlo.Init(1);
   for (int t = 0; t < NUMTRIES; t++) {
-    proj.Run(static_cast<double>(NUMTRIALS));
-    std::cout << NUMT << '\t' << NUMTRIALS << '\t' << mc_mem->prob << '\t' << proj.MaxMegaMults() << std::endl;
+    monte_carlo.Run(static_cast<double>(trials));
   }
+
+  double megatrials_one = monte_carlo.MaxMegaMults();
+
+  // Test with one thread.
+  monte_carlo.Init(threads);
+  for (int t = 0; t < NUMTRIES; t++) {
+    monte_carlo.Run(static_cast<double>(trials));
+  }
+
+  double megatrials_two = monte_carlo.MaxMegaMults();
+
+  double speedup = CalcSpeedup(megatrials_two, megatrials_one);
+
+  std::cout << threads << '\t' << trials << '\t' << mc_mem->prob << '\t'
+            << monte_carlo.MaxMegaMults() << std::endl;
+
+  float fp = CalcFp(speedup, threads);
+  std::cout << "Parallel fraction = " << fp << std::endl;
+
+  std::cout << "Writing to records.csv..." << std::endl;
+
+  std::ofstream outfile;
+  outfile.open("records.csv", std::ios_base::app);
+
+  // Setting the precision for output.
+  outfile << std::fixed;
+  outfile << std::setprecision(3);
+  outfile << threads << '\t' << trials << '\t' << mc_mem->prob << '\t'
+            << monte_carlo.MaxMegaMults() << '\t' << fp << std::endl;
 
   return 0;
 }
