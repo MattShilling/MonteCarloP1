@@ -10,6 +10,10 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+
+- publish: $(System.DefaultWorkingDirectory)/records.csv
+  artifact: records.csv
+  
 - script: |
     cmake CMakeLists.txt
     cmake --build .
@@ -18,8 +22,5 @@ steps:
 - script: lscpu
   displayName: 'Running binary...'
   
--script: |
-    ./MonteCarlo
+-script: ./MonteCarlo
   displayName: 'Running binary...'
-- publish: $(System.DefaultWorkingDirectory)/records.csv
-  artifact: records.csv
