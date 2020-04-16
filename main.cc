@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
   
   // Setting the precision for output.
   std::cout << std::fixed;
-  std::cout << std::setprecision(6);
+  std::cout << std::setprecision(3);
 
   if (argc >= 4 && std::string(argv[3]) == "-s") {
     // Test with one thread.
