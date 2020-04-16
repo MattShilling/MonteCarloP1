@@ -17,7 +17,7 @@ steps:
   displayName: 'Building...'
 
 - script: lscpu
-  displayName: 'Running binary...'
+  displayName: 'CPU Info...'
   
 - script: ./MonteCarlo
   displayName: 'Running binary...'
