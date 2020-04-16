@@ -6,6 +6,10 @@
 - OpenMP
 
 # To Build
+- `make`
+
+Or if any changes were made to dependencies:
+
 - `cmake CMakeLists.txt`
 - `make` or `cmake --build .`
 
