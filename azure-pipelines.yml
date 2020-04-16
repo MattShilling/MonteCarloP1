@@ -18,7 +18,10 @@ steps:
 - script: lscpu
   displayName: 'CPU Info...'
 
-- script: ./MonteCarlo
+- script: |
+    ./MonteCarlo
+    ./MonteCarlo 8 1000
+    ./MonteCarlo 8 1000 -s
   displayName: 'Running binary...'
 
 - publish: $(System.DefaultWorkingDirectory)/records.csv
